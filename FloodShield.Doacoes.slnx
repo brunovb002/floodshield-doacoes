@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FloodShield.Doacoes.Api/FloodShield.Doacoes.Api.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FloodShield.Doacoes.IntegrationTests/FloodShield.Doacoes.IntegrationTests.csproj" />
+    <Project Path="tests/FloodShield.Doacoes.UnitTests/FloodShield.Doacoes.UnitTests.csproj" />
+  </Folder>
+</Solution>
