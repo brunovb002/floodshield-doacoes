@@ -23,6 +23,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddScoped<IPasswordHasher<Usuario>, PasswordHasher<Usuario>>();
 
+builder.Services.AddHttpClient<IViaCepService, ViaCepService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ViaCep:BaseUrl"] ?? "https://viacep.com.br/ws/");
+    client.Timeout = TimeSpan.FromSeconds(5);
+});
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -43,6 +49,7 @@ builder.Services.AddAuthorizationBuilder()
     .AddPolicy("Gestor", policy => policy.RequireRole(nameof(Papel.Gestor)));
 
 builder.Services.AddValidation();
+builder.Services.AddProblemDetails();
 
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
@@ -75,6 +82,12 @@ builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
+app.UseExceptionHandler(new ExceptionHandlerOptions
+{
+    StatusCodeSelector = ex => ex is BadHttpRequestException bad ? bad.StatusCode : StatusCodes.Status500InternalServerError
+});
+app.UseStatusCodePages();
+
 app.MapOpenApi();
 app.MapScalarApiReference(options =>
 {
@@ -87,6 +100,8 @@ app.UseAuthorization();
 
 app.MapHealthChecks("/health/live");
 app.MapAuthEndpoints();
+app.MapPontoColetaEndpoints();
+app.MapItemEndpoints();
 
 await DbSeeder.CriarGestorAsync(app.Services, app.Configuration);
 
