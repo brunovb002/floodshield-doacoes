@@ -102,6 +102,7 @@ app.MapHealthChecks("/health/live");
 app.MapAuthEndpoints();
 app.MapPontoColetaEndpoints();
 app.MapItemEndpoints();
+app.MapNecessidadeEndpoints();
 
 await DbSeeder.CriarGestorAsync(app.Services, app.Configuration);
 
