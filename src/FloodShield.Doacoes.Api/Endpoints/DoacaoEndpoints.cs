@@ -3,6 +3,7 @@ using FloodShield.Doacoes.Api.Data;
 using FloodShield.Doacoes.Api.Dtos;
 using FloodShield.Doacoes.Api.Models;
 using FloodShield.Doacoes.Api.Services;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace FloodShield.Doacoes.Api.Endpoints;
@@ -15,6 +16,8 @@ public static class DoacaoEndpoints
 
         group.MapPost("/", Criar)
             .RequireAuthorization("Cidadao")
+            .AddEndpointFilter<IdempotenciaFilter<CriarDoacaoRequest>>()
+            .WithDescription("Exige o header Idempotency-Key. Repetir a mesma chave com o mesmo corpo devolve a resposta original, sem criar outra doação.")
             .Produces<DoacaoResponse>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .Produces(StatusCodes.Status409Conflict)
@@ -55,7 +58,11 @@ public static class DoacaoEndpoints
             .Produces(StatusCodes.Status422UnprocessableEntity);
     }
 
-    private static async Task<IResult> Criar(CriarDoacaoRequest request, ClaimsPrincipal user, AppDbContext db)
+    private static async Task<IResult> Criar(
+        CriarDoacaoRequest request,
+        [FromHeader(Name = IdempotenciaFilter<CriarDoacaoRequest>.Header)] string idempotencyKey,
+        ClaimsPrincipal user,
+        AppDbContext db)
     {
         await using var transacao = await db.Database.BeginTransactionAsync();
         await TravarNecessidade(db, request.NecessidadeId);

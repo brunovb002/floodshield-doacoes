@@ -32,6 +32,11 @@ public static class AuthEndpoints
         usuarios.MapPut("/me", AtualizarPerfil)
             .Produces<UsuarioResponse>()
             .ProducesValidationProblem();
+
+        usuarios.MapDelete("/me", ExcluirConta)
+            .RequireAuthorization("Cidadao")
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status409Conflict);
     }
 
     private static async Task<IResult> Registrar(RegistrarRequest request, AppDbContext db, IPasswordHasher<Usuario> hasher)
@@ -87,5 +92,19 @@ public static class AuthEndpoints
         await db.SaveChangesAsync();
 
         return Results.Ok(UsuarioResponse.De(usuario));
+    }
+
+    private static async Task<IResult> ExcluirConta(ClaimsPrincipal user, AppDbContext db)
+    {
+        var usuario = await db.Usuarios.FindAsync(user.GetUsuarioId());
+        if (usuario is null)
+            return Results.NotFound();
+
+        if (await db.Doacoes.AnyAsync(d => d.UsuarioId == usuario.Id))
+            return Results.Conflict(new { mensagem = "A conta tem doações registradas e não pode ser excluída." });
+
+        db.Usuarios.Remove(usuario);
+        await db.SaveChangesAsync();
+        return Results.NoContent();
     }
 }

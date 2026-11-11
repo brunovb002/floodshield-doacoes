@@ -14,6 +14,7 @@ public class AppDbContext : DbContext
     public DbSet<Item> Itens => Set<Item>();
     public DbSet<Necessidade> Necessidades => Set<Necessidade>();
     public DbSet<Doacao> Doacoes => Set<Doacao>();
+    public DbSet<IdempotencyKey> IdempotencyKeys => Set<IdempotencyKey>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -25,6 +26,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Usuario>().HasIndex(u => u.Email).IsUnique();
         modelBuilder.Entity<Item>().HasIndex(i => i.Nome).IsUnique();
         modelBuilder.Entity<Doacao>().HasIndex(d => d.CodigoEntrega).IsUnique();
+        modelBuilder.Entity<IdempotencyKey>().HasIndex(k => new { k.UsuarioId, k.Chave }).IsUnique();
 
         modelBuilder.Entity<Necessidade>()
             .HasOne(n => n.PontoColeta)
