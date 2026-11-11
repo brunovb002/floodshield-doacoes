@@ -46,7 +46,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorizationBuilder()
-    .AddPolicy("Gestor", policy => policy.RequireRole(nameof(Papel.Gestor)));
+    .AddPolicy("Gestor", policy => policy.RequireRole(nameof(Papel.Gestor)))
+    .AddPolicy("Cidadao", policy => policy.RequireRole(nameof(Papel.Cidadao)));
 
 builder.Services.AddValidation();
 builder.Services.AddProblemDetails();
@@ -103,6 +104,7 @@ app.MapAuthEndpoints();
 app.MapPontoColetaEndpoints();
 app.MapItemEndpoints();
 app.MapNecessidadeEndpoints();
+app.MapDoacaoEndpoints();
 
 await DbSeeder.CriarGestorAsync(app.Services, app.Configuration);
 
