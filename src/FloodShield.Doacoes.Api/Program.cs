@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using FloodShield.Doacoes.Api.Configuracao;
 using FloodShield.Doacoes.Api.Data;
 using FloodShield.Doacoes.Api.Endpoints;
 using FloodShield.Doacoes.Api.Models;
@@ -79,7 +80,8 @@ builder.Services.AddOpenApi(options =>
     });
 });
 
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthCheckConfig();
+builder.Services.AddRateLimitPolicies(builder.Configuration);
 
 var app = builder.Build();
 
@@ -97,9 +99,10 @@ app.MapScalarApiReference(options =>
 });
 
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
-app.MapHealthChecks("/health/live");
+app.MapHealthCheckConfig();
 app.MapAuthEndpoints();
 app.MapPontoColetaEndpoints();
 app.MapItemEndpoints();

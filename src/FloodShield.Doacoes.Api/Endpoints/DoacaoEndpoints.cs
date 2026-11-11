@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using FloodShield.Doacoes.Api.Configuracao;
 using FloodShield.Doacoes.Api.Data;
 using FloodShield.Doacoes.Api.Dtos;
 using FloodShield.Doacoes.Api.Models;
@@ -16,6 +17,7 @@ public static class DoacaoEndpoints
 
         group.MapPost("/", Criar)
             .RequireAuthorization("Cidadao")
+            .RequireRateLimiting(RateLimitConfig.Doacoes)
             .AddEndpointFilter<IdempotenciaFilter<CriarDoacaoRequest>>()
             .WithDescription("Exige o header Idempotency-Key. Repetir a mesma chave com o mesmo corpo devolve a resposta original, sem criar outra doação.")
             .Produces<DoacaoResponse>(StatusCodes.Status201Created)

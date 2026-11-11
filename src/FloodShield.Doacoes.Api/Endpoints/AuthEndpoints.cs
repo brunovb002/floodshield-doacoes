@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using FloodShield.Doacoes.Api.Configuracao;
 using FloodShield.Doacoes.Api.Data;
 using FloodShield.Doacoes.Api.Dtos;
 using FloodShield.Doacoes.Api.Models;
@@ -12,7 +13,7 @@ public static class AuthEndpoints
 {
     public static void MapAuthEndpoints(this WebApplication app)
     {
-        var auth = app.MapGroup("/api/auth").WithTags("Auth");
+        var auth = app.MapGroup("/api/auth").WithTags("Auth").RequireRateLimiting(RateLimitConfig.Auth);
 
         auth.MapPost("/registrar", Registrar)
             .Produces<UsuarioResponse>(StatusCodes.Status201Created)
