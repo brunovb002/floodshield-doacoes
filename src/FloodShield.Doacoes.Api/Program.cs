@@ -109,6 +109,12 @@ app.MapItemEndpoints();
 app.MapNecessidadeEndpoints();
 app.MapDoacaoEndpoints();
 
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    using var scope = app.Services.CreateScope();
+    await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
+}
+
 await DbSeeder.CriarGestorAsync(app.Services, app.Configuration);
 
 app.Run();

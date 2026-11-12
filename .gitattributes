@@ -1,0 +1,2 @@
+# Scripts bash precisam de quebra de linha LF para rodar no agente do pipeline
+*.sh text eol=lf

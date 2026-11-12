@@ -1,0 +1,147 @@
+trigger:
+  branches:
+    include:
+      - main
+
+variables:
+  buildConfiguration: 'Release'
+  azureSubscription: 'sc-azure-floodshield-gs'
+  apiProject: 'src/FloodShield.Doacoes.Api/FloodShield.Doacoes.Api.csproj'
+  solution: 'FloodShield.Doacoes.slnx'
+  artifactName: 'app'
+  webAppName: 'app-floodshield-doacoes'
+  sqlServer: 'sql-floodshield-gs'
+  sqlDatabase: 'floodshielddb'
+  # Jobs rodam no agente self-hosted do pool Default (a organização não tem
+  # agentes Microsoft-hosted liberados para projetos privados)
+  # Secretas, cadastradas em Pipelines > Edit > Variables (com o cadeado):
+  # SQL_ADMIN_USER, SQL_ADMIN_PASSWORD, JWT_KEY, GESTOR_EMAIL e GESTOR_SENHA
+
+stages:
+
+# =========================================================
+# 1. CRIAR INFRAESTRUTURA
+# =========================================================
+- stage: Infraestrutura
+  displayName: 'Criar infraestrutura'
+  jobs:
+    - job: CriarInfra
+      displayName: 'Provisionar recursos Azure'
+      pool:
+        name: 'Default'
+      steps:
+        - task: AzureCLI@2
+          displayName: 'Executar script de infraestrutura'
+          inputs:
+            azureSubscription: '$(azureSubscription)'
+            scriptType: 'bash'
+            scriptLocation: 'scriptPath'
+            scriptPath: 'scripts/infra-app.sh'
+            arguments: '"$(webAppName)" "$(sqlServer)" "$(sqlDatabase)" "$(SQL_ADMIN_USER)" "$(SQL_ADMIN_PASSWORD)"'
+
+# =========================================================
+# 2. BUILD, TESTES E PUBLICAÇÃO DO ARTEFATO (CI)
+# =========================================================
+- stage: BuildTestes
+  displayName: 'Build e testes'
+  dependsOn: Infraestrutura
+  jobs:
+    - job: BuildTest
+      displayName: 'Compilar e testar API'
+      pool:
+        name: 'Default'
+      steps:
+        - task: UseDotNet@2
+          displayName: 'Instalar .NET 10'
+          inputs:
+            packageType: 'sdk'
+            version: '10.x'
+
+        - task: DotNetCoreCLI@2
+          displayName: 'Restaurar dependências'
+          inputs:
+            command: 'restore'
+            projects: '$(solution)'
+
+        - task: DotNetCoreCLI@2
+          displayName: 'Build da solução'
+          inputs:
+            command: 'build'
+            projects: '$(solution)'
+            arguments: '--configuration $(buildConfiguration) --no-restore'
+
+        - task: DotNetCoreCLI@2
+          displayName: 'Testes unitários e de integração'
+          inputs:
+            command: 'test'
+            projects: 'tests/**/*.csproj'
+            arguments: '--configuration $(buildConfiguration) --no-build'
+            testRunTitle: 'Testes FloodShield Doações'
+
+        - task: DotNetCoreCLI@2
+          displayName: 'Publicar API'
+          inputs:
+            command: 'publish'
+            publishWebProjects: false
+            projects: '$(apiProject)'
+            arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+            zipAfterPublish: true
+
+        - task: PublishPipelineArtifact@1
+          displayName: 'Publicar artefato'
+          inputs:
+            targetPath: '$(Build.ArtifactStagingDirectory)'
+            artifact: '$(artifactName)'
+            publishLocation: 'pipeline'
+
+# =========================================================
+# 3. DEPLOY NO AZURE APP SERVICE (CD)
+# =========================================================
+- stage: Deploy
+  displayName: 'Deploy no Azure App Service'
+  dependsOn: BuildTestes
+  jobs:
+    - job: DeployWebApp
+      displayName: 'Implantar API'
+      pool:
+        name: 'Default'
+      steps:
+        - checkout: none
+
+        - task: DownloadPipelineArtifact@2
+          displayName: 'Baixar artefato'
+          inputs:
+            buildType: 'current'
+            artifactName: '$(artifactName)'
+            targetPath: '$(Pipeline.Workspace)/$(artifactName)'
+
+        - task: AzureAppServiceSettings@1
+          displayName: 'Configurar variáveis do App Service'
+          inputs:
+            azureSubscription: '$(azureSubscription)'
+            appName: '$(webAppName)'
+            appSettings: |
+              [
+                { "name": "ASPNETCORE_ENVIRONMENT", "value": "Production", "slotSetting": false },
+                { "name": "Jwt__Key", "value": "$(JWT_KEY)", "slotSetting": false },
+                { "name": "Gestor__Email", "value": "$(GESTOR_EMAIL)", "slotSetting": false },
+                { "name": "Gestor__Senha", "value": "$(GESTOR_SENHA)", "slotSetting": false }
+              ]
+            connectionStrings: |
+              [
+                {
+                  "name": "DefaultConnection",
+                  "value": "Server=tcp:$(sqlServer).database.windows.net,1433;Database=$(sqlDatabase);User ID=$(SQL_ADMIN_USER);Password=$(SQL_ADMIN_PASSWORD);Encrypt=true;",
+                  "type": "SQLAzure",
+                  "slotSetting": false
+                }
+              ]
+
+        - task: AzureWebApp@1
+          displayName: 'Deploy da API'
+          inputs:
+            azureSubscription: '$(azureSubscription)'
+            appType: 'webAppLinux'
+            appName: '$(webAppName)'
+            package: '$(Pipeline.Workspace)/$(artifactName)/*.zip'
+            deploymentMethod: 'zipDeploy'
