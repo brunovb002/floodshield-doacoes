@@ -9,8 +9,10 @@
 WEBAPP_NAME=$1
 SQL_SERVER=$2
 SQL_DB=$3
-SQL_ADMIN_USER=$4
-SQL_ADMIN_PASS=$5
+
+# Usuário e senha do banco chegam como variáveis de ambiente (secretas no pipeline)
+SQL_ADMIN_USER="${SQL_ADMIN_USER:?SQL_ADMIN_USER não informado}"
+SQL_ADMIN_PASS="${SQL_ADMIN_PASSWORD:?SQL_ADMIN_PASSWORD não informado}"
 
 # Variáveis
 RESOURCE_GROUP="rg-floodshield-gs"

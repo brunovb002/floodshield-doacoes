@@ -37,7 +37,10 @@ stages:
             scriptType: 'bash'
             scriptLocation: 'scriptPath'
             scriptPath: 'scripts/infra-app.sh'
-            arguments: '"$(webAppName)" "$(sqlServer)" "$(sqlDatabase)" "$(SQL_ADMIN_USER)" "$(SQL_ADMIN_PASSWORD)"'
+            arguments: '"$(webAppName)" "$(sqlServer)" "$(sqlDatabase)"'
+          env:
+            SQL_ADMIN_USER: $(SQL_ADMIN_USER)
+            SQL_ADMIN_PASSWORD: $(SQL_ADMIN_PASSWORD)
 
 # =========================================================
 # 2. BUILD, TESTES E PUBLICAÇÃO DO ARTEFATO (CI)
