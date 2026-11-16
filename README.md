@@ -112,10 +112,9 @@ dotnet user-secrets set "Gestor:Email" "gestor@floodshield.com"
 dotnet user-secrets set "Gestor:Senha" "<senha-do-gestor>"
 ```
 
-3. Crie o banco e rode a API:
+3. Rode a API (as tabelas são criadas pelas migrations quando ela sobe):
 
 ```
-dotnet ef database update --project src/FloodShield.Doacoes.Api
 dotnet run --project src/FloodShield.Doacoes.Api
 ```
 
@@ -136,6 +135,76 @@ dotnet test
 
 - `FloodShield.Doacoes.UnitTests`: regras de saldo, prioridade, status, quantidade e código de entrega, e o health check do ViaCEP com Moq.
 - `FloodShield.Doacoes.IntegrationTests`: sobe a API com `WebApplicationFactory`, SQLite em memória e um ViaCEP falso, e testa login, permissões, CRUD, doações, idempotência, health check e rate limiting.
+
+## DevOps e Cloud (Azure)
+
+API publicada em **https://app-floodshield-doacoes.azurewebsites.net** (documentação em `/scalar`).
+
+![Arquitetura](docs/arquitetura.png)
+
+O código fica no **Azure Repos** do projeto *GS 2026 - FloodShield* no Azure DevOps, com uma cópia neste GitHub.
+Toda alteração segue o fluxo: tarefa no **Azure Boards** → branch → commit com `AB#<id>` → **Pull Request** → merge na `main`.
+
+A `main` é protegida por três políticas: pelo menos um revisor (quem abre o PR pode aprovar), work item vinculado obrigatório
+e revisor padrão.
+
+### Pipeline (`azure-pipeline.yml`)
+
+O merge na `main` dispara o pipeline, que roda no agente self-hosted do pool `Default`:
+
+| Stage | O que faz |
+|---|---|
+| Criar infraestrutura | Roda `scripts/infra-app.sh` com o Azure CLI. Cria (ou mantém, se já existir) o resource group, o Azure SQL e o App Service |
+| Build e testes | Restore, build, os testes unitários e de integração e a publicação do artefato `app` (zip da API) |
+| Deploy no Azure App Service | Grava as configurações no App Service e publica o artefato com zipDeploy |
+
+### Recursos no Azure
+
+| Recurso | Nome | Região |
+|---|---|---|
+| Resource Group | `rg-floodshield-gs` | centralus |
+| Azure SQL Server | `sql-floodshield-gs` | centralus |
+| Banco Azure SQL (Basic) | `floodshielddb` | centralus |
+| App Service Plan (F1 Linux) | `asp-floodshield-gs` | westus3 |
+| App Service (.NET 10) | `app-floodshield-doacoes` | westus3 |
+
+O DDL das tabelas está em `scripts/script-bd.sql` (gerado das migrations do EF Core). Quando a API sobe, ela aplica as migrations sozinha.
+
+### Variáveis do pipeline
+
+Ficam secretas no Azure DevOps (*Pipelines → Edit → Variables*) e nunca no repositório:
+`SQL_ADMIN_USER`, `SQL_ADMIN_PASSWORD`, `JWT_KEY`, `GESTOR_EMAIL` e `GESTOR_SENHA`.
+O usuário e a senha do banco chegam ao script de infra como variáveis de ambiente, e as demais viram configurações do App Service.
+
+### Exemplos de JSON para o CRUD
+
+Faça login em `POST /api/auth/login` e use o token como `Bearer`. Pontos de coleta, itens e necessidades exigem o gestor.
+
+```json
+// POST /api/pontos-coleta  (PUT /api/pontos-coleta/{id} usa o mesmo corpo)
+{ "nome": "Ginásio Municipal", "cep": "01310100", "numero": "1578", "horario": "8h às 18h", "ativo": true }
+
+// POST /api/itens  (PUT /api/itens/{id})
+{ "nome": "Água mineral", "categoria": "Agua", "unidade": "Litro" }
+
+// POST /api/necessidades
+{ "pontoColetaId": 1, "itemId": 1, "quantidadeNecessaria": 200, "urgencia": "Alta" }
+// PUT /api/necessidades/{id}
+{ "quantidadeNecessaria": 250, "urgencia": "Critica" }
+
+// POST /api/doacoes  (cidadão, header Idempotency-Key obrigatório)
+{ "necessidadeId": 1, "quantidade": 30 }
+// PUT /api/doacoes/{id}
+{ "quantidade": 40 }
+// PATCH /api/doacoes/{id}/confirmar-entrega  (gestor)
+{ "codigo": "XGQRC8" }
+
+// POST /api/auth/registrar  |  PUT /api/usuarios/me
+{ "nome": "Maria Souza", "email": "maria@email.com", "senha": "senha123" }
+{ "nome": "Maria S. Souza" }
+```
+
+Os DELETE usam só o id na rota (`DELETE /api/itens/{id}`, `DELETE /api/doacoes/{id}` etc.). A conta é excluída com `DELETE /api/usuarios/me`.
 
 ## Integrantes
 
