@@ -19,9 +19,6 @@ variables:
 
 stages:
 
-# =========================================================
-# 1. CRIAR INFRAESTRUTURA
-# =========================================================
 - stage: Infraestrutura
   displayName: 'Criar infraestrutura'
   jobs:
@@ -42,9 +39,6 @@ stages:
             SQL_ADMIN_USER: $(SQL_ADMIN_USER)
             SQL_ADMIN_PASSWORD: $(SQL_ADMIN_PASSWORD)
 
-# =========================================================
-# 2. BUILD, TESTES E PUBLICAÇÃO DO ARTEFATO (CI)
-# =========================================================
 - stage: BuildTestes
   displayName: 'Build e testes'
   dependsOn: Infraestrutura
@@ -97,9 +91,6 @@ stages:
             artifact: '$(artifactName)'
             publishLocation: 'pipeline'
 
-# =========================================================
-# 3. DEPLOY NO AZURE APP SERVICE (CD)
-# =========================================================
 - stage: Deploy
   displayName: 'Deploy no Azure App Service'
   dependsOn: BuildTestes
