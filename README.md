@@ -206,6 +206,16 @@ Faça login em `POST /api/auth/login` e use o token como `Bearer`. Pontos de col
 
 Os DELETE usam só o id na rota (`DELETE /api/itens/{id}`, `DELETE /api/doacoes/{id}` etc.). A conta é excluída com `DELETE /api/usuarios/me`.
 
+## Uso de IA
+
+Usamos o Claude (Anthropic), pelo Claude Code, como apoio no desenvolvimento:
+
+- explicar erros e tirar dúvidas de .NET, Entity Framework, Azure e Azure DevOps;
+- apoiar a configuração do pipeline e da infraestrutura no Azure;
+- revisar o README e o desenho da arquitetura.
+
+Todo o conteúdo foi revisado, testado e entendido por nós antes de entrar no repositório.
+
 ## Integrantes
 
 - Bruno Vinicius Barbosa - RM 566366
