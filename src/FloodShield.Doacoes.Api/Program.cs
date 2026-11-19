@@ -6,6 +6,7 @@ using FloodShield.Doacoes.Api.Endpoints;
 using FloodShield.Doacoes.Api.Models;
 using FloodShield.Doacoes.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -70,11 +71,20 @@ builder.Services.AddOpenApi(options =>
             Description = "Token gerado em /api/auth/login"
         };
 
-        document.Security ??= [];
-        document.Security.Add(new OpenApiSecurityRequirement
+        return Task.CompletedTask;
+    });
+
+    options.AddOperationTransformer((operation, context, cancellationToken) =>
+    {
+        var exigeLogin = context.Description.ActionDescriptor.EndpointMetadata.OfType<IAuthorizeData>().Any();
+        if (exigeLogin)
         {
-            [new OpenApiSecuritySchemeReference("Bearer", document)] = []
-        });
+            operation.Security ??= [];
+            operation.Security.Add(new OpenApiSecurityRequirement
+            {
+                [new OpenApiSecuritySchemeReference("Bearer", context.Document)] = []
+            });
+        }
 
         return Task.CompletedTask;
     });
